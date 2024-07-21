@@ -41,6 +41,18 @@ require("afaire").setup({
 })
 ```
 
+Unless you have set `with_telescope_extension = false`, the plugin automatically
+registers the `afaire` extension to [telescope][a]. You may run the vim command
+`:Telescope afaire` to browse the notes. You are advised to create a mapping
+for an easy access, as in the example below:
+
+
+```lua
+-- In "normal" mode, <leader> followed by the letters "f" and "a" triggers
+-- the call to the Telescope extension that displays your notes.
+vim.keymap.set('n', '<leader>fa', '<cmd>Telescope afaire<cr>')
+```
+
 For additional configuration parameters, please refer to [the documentation](doc/afaire.txt):
 
 ```vim
