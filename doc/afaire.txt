@@ -1,0 +1,48 @@
+================================================================================
+INTRODUCTION                                                       *afaire.nvim*
+
+Please see the README, waiting for a better introduction...
+https://github.com/jeanguyomarch/afaire.nvim
+
+afaire.setup({opts})                                            *afaire.setup()*
+  Setup function to be called by the user prior using the plugin.
+
+  Usage:
+  >
+  require("afaire").setup({
+    notes_directory = "~/notes",
+
+    default_namespace = "default",
+    default_filetype = "markdown",
+    default_extension = ".md",
+
+    -- Set this to `false` if you don't want to use the integration
+    -- with telescope.
+    with_telescope_extension = true,
+
+    -- Override some intervals of the plugin
+    template = function(...) end,
+    load_metadata = function(...) end,
+
+  })
+
+
+afaire.Afaire(...)                                            *afaire.Afaire*
+  
+  Vim command that creates a new note (in the current namespace). The plugin
+  automatically creates a new note with most parameters already setup for you.
+  This includes the title of the note, which corresponds to the arguments
+  provided to the command?
+
+  If no argument is provided to the command, the title must be written
+  directly in the buffer.
+
+  Save the file to write the note.
+
+  Please note that the note file is created with a timestamp of the current
+  time (in seconds). This is not robust at all to concurrent accesses. I.e.
+  if two notes are simultaneously created at the same "time" within the same
+  second, there will be two handled on the same file.
+
+  
+vim:tw=78:ts=8:ft=help:norl:
