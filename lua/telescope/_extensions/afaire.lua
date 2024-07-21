@@ -73,7 +73,7 @@ local function search(opts)
 end
 
 
-return telescope.register_extension({
+return require("telescope").register_extension({
   setup = function(ext_config, config)
     -- Setup currently does not much...
     -- Maybe add an action later...
