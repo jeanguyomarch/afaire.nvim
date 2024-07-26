@@ -19,47 +19,28 @@ function M.warn(...)
   vim.notify(..., vim.log.levels.WARNING, { title = "afaire" })
 end
 
--- The two functions below (sanitize_required_parameter and
--- sanitize_optional_parameter) are really helpful when parsing the user
--- configuration. They ensure the plugin starts with "sanitized" parameters
---
--- Both functions accept `extra_args`, which is an optional table (i.e. may be
--- nil) with the following fields:
---   * expand: boolean. If true, `expandcmd()` is run on the input parameter.
---   * default_value: Contains the default value of the parameter being
---     sanitized. This is obviously not needed for sanitize_required_parameter(),
---     as an error is raised if the parameter is missing.
---
--- These functions raise an error if something unusual happens, as we should
--- not move forward with a deeply invalid user configuration.
---
-function M.sanitize_required_parameter(container, key, expected_type, extra_args)
-  extra_args = extra_args == nil and {} or extra_args
-  local value = container[key]
-  if value == nil then
-    M.err("You must provide a non-nil parameter named `" .. key .. "` when calling setup()")
-  end
-  if type(value) ~= expected_type then
-    M.err("Parameter `" .. key .. "` must be of type " .. expected_type)
-  end
-
-  if extra_args.expand == true then
-    container[key] = vim.fn.expandcmd(value)
-  end
+-- Return the name of the highlight group for a given priority
+function M.priority_hl_group(priority)
+  return "AfairePriority" .. priority
 end
 
-function M.sanitize_optional_parameter(container, key, expected_type, extra_args)
-  extra_args = extra_args == nil and {} or extra_args
-  local value = container[key]
-  if value == nil then
-    container[key] = extra_args.default_value
-  elseif type(value) ~= expected_type then
-    M.err("Parameter `" .. key .. "` must be of type " .. expected_type)
+-- This comes directly from:
+--   https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
+--
+function M.ask_to_confirm(prompt, default_value, yes_values)
+  yes_values = yes_values or { "y", "yes" }
+  default_value = default_value or ""
+  local confirmation = vim.fn.input(prompt, default_value)
+  confirmation = string.lower(confirmation)
+  if string.len(confirmation) == 0 then
+    return false
   end
-
-  if extra_args.expand == true then
-    container[key] = vim.fn.expand(value)
+  for _, v in pairs(yes_values) do
+    if v == confirmation then
+      return true
+    end
   end
+  return false
 end
 
 return M

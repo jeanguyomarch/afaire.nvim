@@ -11,9 +11,32 @@ local finders = require("telescope.finders")
 local previewers = require("telescope.previewers")
 local conf = require("telescope.config").values
 local entry_display = require("telescope.pickers.entry_display")
+local actions = require("telescope.actions")
+local action_state = require("telescope.actions.state")
 
+
+local A = require("afaire")
+local U = require("afaire.util")
+local fs = require("afaire.fs")
+
+
+
+local function archive(entry_title, entry_path, bufnr)
+  local confirmation = U.ask_to_confirm("Do you really want to archive entry `" .. entry_title .. "'? [Y/n] ", "y")
+  if not confirmation then
+    return
+  end
+
+  local picker = action_state.get_current_picker(bufnr)
+  picker:delete_selection(function()
+    local directory = A:directory()
+    fs.archive_note(entry_path, directory.archives)
+  end)
+end
 
 local function search(opts)
+  local afaire = require("afaire")
+
   -- Let each note be displayed as a row in a table, such as:
   --
   --    A  2024-07-21  This is my note
@@ -34,29 +57,33 @@ local function search(opts)
       { width = 10 }, -- due date
       { remaining = true }, -- title
     },
-    -- FIXME I would like to add colors to priorities. The following does not seem
-    -- to work, and requires further investigation
-    --hl_chars = {
-    --  { ["D"] = "Keyword" }
-    --}
   })
   local make_display = function(entry)
-    return displayer {
-      entry.value.priority,
+    local priority_hl_group = U.priority_hl_group(entry.value.priority)
+    return displayer({
+      { entry.value.priority, priority_hl_group },
       entry.value.due or "",
       entry.value.title,
-    }
+    })
   end
 
+  local results = fs.load_notes()
   pickers.new(opts, {
     prompt_title = "afaire",
     sorter = conf.generic_sorter(opts), -- Nothing special. Good practice.
     previewer = conf.file_previewer(opts), -- Requires a `path` key below
+    -- TODO: make mapping configurable
+    attach_mappings = function(x, map)
+      map({"i", "n"}, "<C-k>", function(bufnr)
+        local current_entry = action_state.get_selected_entry()
+        archive(current_entry.value.title, current_entry.path, bufnr)
+      end)
+      return true -- true: keep default mappings
+    end,
     finder = finders.new_table({
       -- `results` is the list of every note (sorted by decreasing priority) in
-      -- the current namespace. It is the job of the `cache` to efficiently retrieve
-      -- this list.
-      results = require("afaire.cache").load(),
+      -- the current namespace.
+      results = results,
       entry_maker = function(entry)
         return {
           -- path: required by the previewer (what file should be loaded?)
@@ -74,7 +101,7 @@ end
 
 
 return require("telescope").register_extension({
-  setup = function(ext_config, config)
+  setup = function(ext_config, user_config)
     -- Setup currently does not much...
     -- Maybe add an action later...
     --action = ext_config.action or action

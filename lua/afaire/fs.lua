@@ -2,12 +2,7 @@ local A = require("afaire")
 local U = require("afaire.util")
 
 local M = {
-  cache_data = nil
 }
-
-function M.invalidate()
-  M.cache_data = nil
-end
 
 local function get_frontmatter(data)
   local delimiter = "---\n"
@@ -31,7 +26,7 @@ local function get_frontmatter(data)
   return data:sub(end_first_fm + 1, second_fm - 1)
 end
 
-function M.load_metadata(file)
+function M.load_note_metadata(file)
   -- TODO: additional error handling. If contents cannot be retrieved,
   -- skip the file.
   local file_handle = assert(io.open(file, "r"))
@@ -58,37 +53,49 @@ end
 local function process_file(file)
   -- Load the meta data from the file. Note that the user may provide
   -- their own loader, if they really want to support their own file types.
-  return A.options.load_metadata(file)
+  return A.options.load_note_metadata(file)
 end
 
-function M.build()
-  local cache_data = {}
+function M.load_notes()
+  local directory = A:directory()
+  local notes = {}
   -- Search for every file in the current "afaire directory" that bear the
   -- extension configured with the plugin.
-  for basename, file_type in vim.fs.dir(A.directory) do
+  for basename, file_type in vim.fs.dir(directory.notes) do
     if file_type == "file" and vim.endswith(basename, A.options.default_extension) then
-      -- Compose the full path to the file, and add it to the cache
-      local file = vim.fs.joinpath(A.directory, basename)
+      -- Compose the full path to the file, and add it to the list of notes
+      local file = vim.fs.joinpath(directory.notes, basename)
       local file_data = process_file(file)
       if file_data ~= nil then
-        table.insert(cache_data, file_data)
+        table.insert(notes, file_data)
       end
     end
   end
 
-  table.sort(cache_data, function(a, b)
+  table.sort(notes, function(a, b)
     -- Priorities are string, so using `<` is quite fragile. However,
     -- these are assumed to be only a single uppercase letter, so this
     -- should be fine (:
     return a.priority > b.priority
   end)
-  return cache_data
+  return notes
 end
 
-function M.load()
-  -- XXX Always rebuild the cache.
-  M.cache_data = M.build()
-  return M.cache_data
+function M.ensure_dir_exists(path)
+  if vim.fn.filewritable(path) ~= 2 then
+    if not vim.fn.mkdir(path, "p") then
+      U.err("Failed to create directory `" .. path .. "'")
+    end
+  end
+end
+
+function M.archive_note(note_file, archives_dir)
+  -- We will move the note at `note_file` in the `archives` directory.
+  -- Make sure this directory exists (creates if needed)
+  M.ensure_dir_exists(archives_dir)
+  -- Move `note_file` in the archive directory
+  local new_file = vim.fs.joinpath(archives_dir, vim.fs.basename(note_file))
+  vim.uv.fs_rename(note_file, new_file)
 end
 
 return M

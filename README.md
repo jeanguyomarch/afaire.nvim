@@ -27,19 +27,33 @@ You **MUST** explicitly call `require("afaire").setup()`. Some configuration
 parameters are mandatory: `afaire.nvim` cannot work without them. The main job
 of the plugin consists in reading and writing **notes**, that reside on the
 filesystem. You must tell the plugin the directory where these files will be
-written. This parameter is `notes_directory`; it is a string that gets
-processed with a call to [expandcmd()][d] (which means you can use special
-characters such as `~`).
+written. Two parameters are required:
+
+1. `directories`: a table where keys are a *directory name* and their associates
+   values configure this directory.
+2. `default_directory`: a string value that must correspond to one entry in
+   the `directories table.`
 
 The following code snippet shows the minimal configuration that should work
 out-of-the box. All files written by `afaire.nvim` will end up in the
-directory `~/notes`.
+directory `~/notes/work` by default.
 
 ```lua
 require("afaire").setup({
-  notes_directory = "~/notes",
+  directories = {
+    work = {
+        notes = "~/notes/work"
+    }
+  },
+  default_directory = "work",
 })
 ```
+
+The entry `directories.NAME.notes` is required. It indicates the path where
+notes will be written by `afaire.nvim`. The plugin automatically runs
+[expandcmd()][d] on this parameter, which means you can use special characters
+such as `~`.
+
 
 Unless you have set `with_telescope_extension = false`, the plugin automatically
 registers the `afaire` extension to [telescope][a]. You may run the vim command
@@ -58,6 +72,48 @@ For additional configuration parameters, please refer to [the documentation](doc
 ```vim
 :help afaire.setup
 ```
+
+### Creating a Note
+
+Type in the command:
+
+```vimscript
+:Afaire [optional arguments...]
+```
+
+If you provided arguments to `:Afaire`, these are processed as a single string
+and will be considered as the `title` of your note. In any case, a window opens
+for you to finalize your note. You just have to save the file to create the note.
+
+
+### Switching directories
+
+You may want to use different directories if you have different "work contexts"
+that must not mix together. For instance, if you want to separate your "regular
+paid work" from your "home hobbies". Use the `:AfaireDirectory <directory>` to
+switch from a directory to another. The name of the directory must obviously
+exist in the configuration provided to `afaire.setup`.
+
+
+
+### Browsing through your notes
+
+This can only be done with the built-in Telescope plugin. Run the vim command
+`:Telescope afaire`. Note that this displays the note in your current
+directory. See the section above to switch directories.
+
+Press `Return` once you have previewed an entry to open it in a dedicated
+buffer.
+
+
+### Archiving a note
+
+This can only be done with the built-in Telescope plugin. Press `Ctrl-K`
+on a note to archive it. You will be prompted for confirmation. Archives notes
+are stored in the `archives/` directory within your current directory, unless
+you have explicitly overriden this value.
+
+
 
 
 [a]: https://github.com/nvim-telescope/telescope.nvim

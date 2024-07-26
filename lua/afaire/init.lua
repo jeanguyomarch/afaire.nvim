@@ -8,63 +8,86 @@
 
 local U = require("afaire.util")
 
-local M = {
-  -- This is the user-provided configuration. It should be immutable at the end
-  -- of the `setup()` function, unless the user specifically overrides its
-  -- configuration dynamically
-  options = nil,
-  -- This is a key state variable, as it indicates, at any time, the full path
-  -- where afaire needs to look for and create notes.
-  directory = nil,
-}
+local M = {}
 
--- Unless overriden by the user, this is the function to be called when a new
--- note is created. It sets the initial contents of a note.
+local function setup_telescope(opts)
+  -- Proceed with the telescope integration.
+  -- Implementation is in `telescope/_extensions/afaire.lua`
+  if opts.with_telescope_extension then
+    -- Start by loading `telescope'. Upon failure, the variable `telescope`
+    -- will contain the details of the error. Upon success, it is the actual
+    -- module.
+    local status, telescope = pcall(require, "telescope")
+    if not status then
+      U.err("Failed to load plugin `telescope'. If you don't want support for"
+        .. " telescope, you may want to set `with_telescope_extension = false'."
+        .. " " .. telescope)
+    end
+    telescope.load_extension("afaire")
+  end
+end
+
+local function setup_commands(opts)
+  -- Create the user commands (e.g., type `:Afaire ...`) that really implement
+  -- the plugin. The user commands are implemented in the module `afaire.command`.
+
+  -- `:Afaire [...]`
+  vim.api.nvim_create_user_command("Afaire", function(input)
+    require("afaire.command").Afaire(opts, input)
+  end, { nargs = "*", })
+
+  -- `:AfaireDirectory <dir>`
+  vim.api.nvim_create_user_command("AfaireDirectory", function(input)
+    require("afaire.command").AfaireDirectory(opts, input)
+  end, { nargs = 1, })
+end
+
+
+-- Changes the current directory. We search in the user-provided configuration
+-- a directory named `directory_name`, and we return the associated configuration
+-- entry.
 --
--- This generates the front matter of a markdown file
-local function default_template(context)
-  return "---\n"
-    .. "title = \"" .. context.title .. "\"\n"
-    .. "created = \"" .. os.date("%c", context.timestamp) .. "\"\n"
-    .. "priority = \"" .. context.options.default_priority .. "\"\n"
-    .. "due = \"\"\n"
-    .. "---\n"
-    .. "\n"
+-- The updated context is used by the `M:directory()` function.
+function M:set_directory(directory_name)
+  if self.options.directories[directory_name] == nil then
+    U.err("Directory `" .. args .. "' was not configured. Check afaire.setup().")
+  end
+  self.current_directory = directory_name
+end
+
+
+-- Return the current directory.
+--
+-- The result is a table containing (at least) the following entries:
+--   * notes: the path to the notes directory
+--   * archives: the path to the archives directoryt
+function M:directory()
+  local directory_name = self.current_directory
+  local dir = self.options.directories[directory_name]
+  if dir == nil then
+    U.err("Directory `" .. directory_name .. "' was not configured. Check afaire.setup().")
+  end
+  assert(dir.notes ~= nil)
+  assert(dir.archives ~= nil)
+  return dir
+end
+
+-- This is the main entry point of the plugin.
+function M.setup(opts)
+  if vim.fn.has('nvim-0.10') == 0 then
+    U.err("Afaire requires neovim 0.10 or higher")
   end
 
--- This is the main entry point of the plugin. It parses the user configuration,
--- and defer the configuration work to the `afaire.config` module.
-function M.setup(opts)
-  opts = opts == nil and {} or opts
+  -- Valide and auto-complete the user-provided configuration
+  M.options = require("afaire.config").finalize(opts)
 
-  -- These are all the configuration parameters known to the plugin.
-  -- Update doc/afaire.txt when you change this, please :)
-  U.sanitize_required_parameter(opts, "notes_directory", "string",
-    { expand = true })
-  U.sanitize_optional_parameter(opts, "default_namespace", "string",
-    { expand = false, default_value = "default" })
-  U.sanitize_optional_parameter(opts, "template", "function",
-    { expand = false, default_value = default_template })
-  U.sanitize_optional_parameter(opts, "default_priority", "string",
-    { expand = false, default_value = "D" })
-  U.sanitize_optional_parameter(opts, "default_extension", "string",
-    { expand = false, default_value = ".md" })
-  U.sanitize_optional_parameter(opts, "default_filetype", "string",
-    { expand = false, default_value = "markdown" })
-  U.sanitize_optional_parameter(opts, "with_telescope_extension", "boolean",
-    { expand = false, default_value = true })
-  U.sanitize_optional_parameter(opts, "load_metadata", "function",
-    { expand = false, default_value = require("afaire.cache").load_metadata })
+  -- The init current directory (directory that contains the notes) is
+  -- set to the default directory.
+  M.current_directory = M.options.default_directory
 
-  -- Store the options globally
-  M.options = opts
-  -- Compose the final directory from the configuration. Note that this may be
-  -- overriden later, but for convience, this is placed in a dedicated global
-  -- state
-  M.directory = vim.fs.joinpath(opts.notes_directory, opts.default_namespace)
-
-  -- Continue with the configuration. This is implemented in a dedicated module.
-  require("afaire.config").setup(opts)
+  -- Configure the internals of the plugin
+  setup_telescope(opts)
+  setup_commands(opts)
 end
 
 return M
