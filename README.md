@@ -12,6 +12,9 @@ installing the plugin) to consult a more detailed documentation.
 ---
 
 
+![Overview of afaire.nvim](doc/afaire.jpg)
+
+
 ## Getting started
 
 ### Requirements
