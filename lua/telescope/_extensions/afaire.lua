@@ -36,6 +36,7 @@ end
 
 local function search(opts)
   local afaire = require("afaire")
+  local config = require("afaire.config")
 
   -- Let each note be displayed as a row in a table, such as:
   --
@@ -60,9 +61,14 @@ local function search(opts)
   })
   local make_display = function(entry)
     local priority_hl_group = U.priority_hl_group(entry.value.priority)
+    local due_date = config.parse_due_date(entry.value.due or "", afaire.options.due_format)
+    local due_hl_group = nil
+    if due_date ~= nil then
+      due_hl_group = afaire.options.evaluate_note_urgency(due_date)
+    end
     return displayer({
       { entry.value.priority, priority_hl_group },
-      entry.value.due or "",
+      { entry.value.due or "", due_hl_group },
       entry.value.title,
     })
   end

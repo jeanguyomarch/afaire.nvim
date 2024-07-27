@@ -58,6 +58,56 @@ function M.default_template(context)
 end
 
 
+function M.parse_due_date(input, due_format)
+  assert(#due_format == 3)
+
+  -- Every valid due date is expected to contain three different fields:
+  -- day, month and year (numbers). These may be separatered by any character
+  -- (dash, slash, dot), hence the match with `.`.
+  -- The results of the match are placed in an array.
+  local matches = { string.match(input, "(%d+).(%d+).(%d+)") }
+  -- If the match failed (because the input is not a date), return nil.
+  -- This indicates we failed to parse the due date.
+  if #matches ~= 3 then
+    return nil
+  end
+
+  -- Do through the `due_format`, to assign the previous results to a day,
+  -- month and year. We consider we are at the very beginning of the day.
+  local result = { hour = 0, min = 0, sec = 0 }
+  for index, name in ipairs(due_format) do
+    result[name] = matches[index]
+  end
+  return result
+end
+
+function M.compute_urgency_in_hours(date)
+  local now = os.time()
+  local due = os.time(date)
+  -- os.difftime() gives a result in seconds. Return a result in hours
+  -- The result may be negative.
+  return os.difftime(due, now) / (60 * 60)
+end
+
+function M.evaluate_note_urgency(date)
+  -- Urgency is a result in hours, relative to the start of the due date.
+  -- Between (-24, 0], this is the current day.
+  local urgency = M.compute_urgency_in_hours(date)
+  if urgency <= -24 then
+    return "AfaireUrgencyExpired"
+  elseif urgency <= 0 then
+    return "AfaireUrgencyToday"
+  elseif urgency <= 24 then
+    return "AfaireUrgencyTwoDays"
+  elseif urgency <= 48 then
+    return "AfaireUrgencyThreeDays"
+  elseif urgency <= 144 then
+    return "AfaireUrgencyWeek"
+  else
+    return nil
+  end
+end
+
 local function make_default_highlight_groups(defaut_hl_group)
   local HlPriority = {
     A = { fg = "#ff0000", standout = true, },
@@ -71,6 +121,14 @@ local function make_default_highlight_groups(defaut_hl_group)
     Z = { fg = "#d2b8e0", },
   }
 
+  local HlUrgency = {
+    AfaireUrgencyExpired = { strikethrough = true },
+    AfaireUrgencyToday = { fg = "#ff0000", standout = true },
+    AfaireUrgencyTwoDays = { fg = "#ff0000" },
+    AfaireUrgencyThreeDays = { fg = "#ff8b01" },
+    AfaireUrgencyWeek = { fg = "#FFD301" },
+  }
+
   -- We will create one highlight group per priority. Unless one already exist
   -- (we suppose it was created earlier by the user). We use our local table
   -- `HlPriority` to retrieve our default configuration values.
@@ -78,6 +136,13 @@ local function make_default_highlight_groups(defaut_hl_group)
     local hl_group = U.priority_hl_group(priority)
     if vim.api.nvim_get_hl(0, { name = hl_group }) ~= nil then
       local args = HlPriority[priority] or { link = defaut_hl_group }
+      vim.api.nvim_set_hl(0, hl_group, args)
+    end
+  end
+
+  -- Populate the Urgency highlight groups if they were not previously set
+  for hl_group, args in pairs(HlUrgency) do
+    if vim.api.nvim_get_hl(0, { name = hl_group }) ~= nil then
       vim.api.nvim_set_hl(0, hl_group, args)
     end
   end
@@ -119,6 +184,30 @@ local function check_directories(opts)
   end
 end
 
+local function check_due_format(due_format)
+  -- `allowlist` contains as keys the names of the valid entries. These are
+  -- initialized to `false`, which means there were not encountered. When
+  -- we process `due_format`, we toggle this value to `true`, to indicate
+  -- that a required parameter has been found.
+  local allowlist = { year = false, month = false, day = false }
+
+  -- Go through every item. We reject any input with a value that is not
+  -- in the allowlist. Accepted values are marked as being present.
+  for _, value in ipairs(due_format) do
+    if allowlist[value] == nil then
+      U.err("Invalid value `" .. value .. "' in `due_format'")
+    end
+    allowlist[value] = true
+  end
+
+  -- Finally, we ensure that every required parameter was encountered.
+  for item, is_set in pairs(allowlist) do
+    if not is_set then
+      U.err("Missing required value in `due_format': `" .. item .. "'")
+    end
+  end
+end
+
 function M.finalize(opts)
   opts = opts == nil and {} or opts
 
@@ -140,9 +229,16 @@ function M.finalize(opts)
     { default_value = require("afaire.fs").load_note_metadata })
   sanitize_optional_parameter(opts, "default_highlight_group", "string",
     { default_value = "Identifier" })
+  sanitize_optional_parameter(opts, "due_format", "table",
+    { default_value = { "year", "month", "day" }})
+  sanitize_optional_parameter(opts, "evaluate_note_urgency", "function",
+    { default_value = M.evaluate_note_urgency })
 
   -- Setup the `directories` entry, which expects a table
   check_directories(opts)
+
+  -- Ensure that the `due_format` entry is valid
+  check_due_format(opts.due_format)
 
   -- Configure the default highlight groups
   make_default_highlight_groups(opts.default_highlight_group)

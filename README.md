@@ -93,6 +93,26 @@ Type in the command:
 If you provided arguments to `:Afaire`, these are processed as a single string
 and will be considered as the `title` of your note. In any case, a window opens
 for you to finalize your note. You just have to save the file to create the note.
+A new note looks like the following markdown file:
+
+```markdown
+---
+title = "The title of the note"
+created = "(automatically completed)"
+priority = "A"
+due = "2024/12/30"
+---
+
+Write your contents here :)
+```
+
+* **priority** must be a single uppercase letter of the latin alphabet (A
+  being the highest priority and Z the lowest).
+* **due** (may be empty) is used to determine the *urgency* of the note.
+  To be properly displayed, this must be a date with a year, month and day. By
+  default, the expected format is `YYYY/MM/DD`. See [the
+  documentation](doc/afaire.txt) if you need to configure this format.
+
 
 
 ### Switching directories

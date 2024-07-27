@@ -65,6 +65,31 @@ afaire.setup({opts})                                            *afaire.setup()*
     -- telescope. See :help afaire.hl for details.
     default_highlight_group = "Identifier",
 
+    -- Notes may optionnally set a `due` parameter, which is expected to
+    -- correspond to a time. As long as it is set, Afaire displays it through
+    -- the Telescope integration. However, automatic coloration may be
+    -- performed depending on the urgency of the note (i.e. how close from
+    -- "today" is the due time.
+    --
+    -- Since the `due` parameter is a string, this settings allows the user
+    -- to configure the due format. This must be a table that contain exactly
+    -- three items: `year`, `month` and `day`. There can be in any order: this
+    -- configures the format of the due date.
+    --
+    -- For example, with a value of  `{ "year", "month", "day" }`, due dates
+    -- are parsed as yy/mm/dd. Note that the separator can be anyè
+    -- single-letter character (e.g. a slash, a dot, a dash).
+    --
+    due_format = { "year", "month", "day" },
+
+    -- This function is called to evaluate the urgency of a note. It accepts
+    -- as parameter the date of the note, as a time table containing the keys
+    -- `year`, `month` and `day` (see `due_format`).
+    --
+    -- This function must return the name of an existing highlight group to
+    -- color the due date in the Telescope integration.
+    evaluate_note_urgency = function(date) return "HighlightGroup" end,
+
     -- When a new note is created, the plugin generates a default boilerplate
     -- using the contents of the string returned by this function.
     --
@@ -129,6 +154,8 @@ afaire.Afaire(...)                                               *afaire.Afaire*
   already written. `due` may be left empty. `priority` must be a single 
   uppercase letter of the latin alphabet.
 
+  See the `due_format` configuration settings for details.
+
 
 afaire.AfaireDirectory(...)                                      *afaire.Afaire*
 
@@ -180,10 +207,19 @@ a single uppercase letter of the latin alphabet (from "A" to "Z"), afaire may
 use one highlight group per priority. These are named
 `AfairePriority<LETTER>`, where `<LETTER>` corresponds to the priority.
 
-As such, there are at most 26 highlight groups that Afaire uses. Since this
-may be an awful lot to configure, Afaire only sets a few of them by default
-(A, B, C, D, E, K, X, Y, Z). If a note has a priority with no existing
-highlight group, then the value of `default_highlight_group` is used.
+As such, there are at most 26 highlight groups that Afaire uses to display the
+priority of a task. Since this may be an awful lot to configure, Afaire only
+sets a few of them by default (A, B, C, D, E, K, X, Y, Z). If a note has a
+priority with no existing highlight group, then the value of
+`default_highlight_group` is used.
+
+Additional highlight groups are defined to notify the urgency of a task:
+
+* `AfaireUrgencyExpired`: when the due date of a task is expired
+* `AfaireUrgencyToday`: the task is due for today
+* `AfaireUrgencyTwoDays`: the task is due within two days
+* `AfaireUrgencyThreeDays`: the task is due within three days
+* `AfaireUrgencyWeek`: the task is due within seven days (one calendar week)
 
 You may want to override these highlight groups if the default coloration does
 not suit your taste.
