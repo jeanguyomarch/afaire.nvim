@@ -3,6 +3,15 @@
 Afaire is a Neovim plugin that I intended for my personal management of to-do
 lists. The name comes from the french "à faire", which means: "to do".
 
+---
+
+The `README.md` is just a short introduction of the plugin. Please read
+[doc/afaire.txt](doc/afaire.txt) (or run `:help afaire` in Neovim after
+installing the plugin) to consult a more detailed documentation.
+
+---
+
+
 ## Getting started
 
 ### Requirements
